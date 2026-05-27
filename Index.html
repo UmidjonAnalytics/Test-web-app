@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Imtihon Quiz WebApp</title>
+    <title>Imtihon Tayyorgarlik Bot</title>
     <script src="https://telegram.org/js/telegram-web-app.js"></script>
     <style>
         :root {
@@ -15,63 +15,74 @@
             --border-color: #dddddd;
         }
         .dark-mode {
-            --bg-color: #181818;
+            --bg-color: #121212;
             --text-color: #f5f5f5;
-            --btn-color: #248b1d;
+            --btn-color: #3aa845;
             --btn-text: #ffffff;
-            --card-bg: #262626;
-            --border-color: #404040;
+            --card-bg: #2a2a2a;
+            --border-color: #444444;
         }
         body {
             background-color: var(--bg-color);
             color: var(--text-color);
-            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
-            transition: background 0.3s, color 0.3s;
-            margin: 0; padding: 15px;
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif;
+            transition: background-color 0.3s, color 0.3s;
+            margin: 0; padding: 20px;
             display: flex; flex-direction: column; align-items: center;
+            overflow-x: hidden;
         }
-        .screen { display: none; width: 100%; max-width: 450px; text-align: center; box-sizing: border-box; }
-        .active { display: block; }
+        /* Vertikal o'tish animatsiyasi */
+        .screen { 
+            display: none; width: 100%; max-width: 450px; text-align: center; box-sizing: border-box; 
+        }
+        .active { 
+            display: block;
+            animation: slideUpFade 0.4s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+        }
+        @keyframes slideUpFade {
+            from { opacity: 0; transform: translateY(40px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        
         h2, h3 { margin-bottom: 20px; }
         button {
-            background-color: var(--btn-color);
-            color: var(--btn-text);
+            background-color: var(--btn-color); color: var(--btn-text);
             border: none; padding: 16px; margin: 10px 0;
             width: 100%; font-size: 16px; border-radius: 12px;
-            cursor: pointer; font-weight: 600; transition: transform 0.1s;
+            cursor: pointer; font-weight: bold; transition: transform 0.1s;
         }
-        button:active { transform: scale(0.98); }
+        button:active { transform: scale(0.97); }
         input {
-            width: 100%; padding: 14px; margin: 15px 0;
+            width: 100%; padding: 15px; margin: 15px 0;
             border-radius: 10px; border: 1px solid var(--border-color);
             font-size: 16px; box-sizing: border-box; background: var(--card-bg); color: var(--text-color);
         }
         .option-btn {
             background-color: var(--card-bg); color: var(--text-color);
-            border: 1.5px solid var(--border-color); text-align: left; padding: 14px;
+            border: 2px solid var(--border-color); text-align: left; padding: 15px; margin: 8px 0;
         }
         .option-btn:hover { border-color: var(--btn-color); }
         .rating-table {
-            width: 100%; border-collapse: collapse; margin: 15px 0 25px 0; font-size: 15px;
+            width: 100%; border-collapse: collapse; margin: 15px 0 30px 0; font-size: 15px;
         }
         .rating-table th, .rating-table td {
-            padding: 12px; border: 1px solid var(--border-color); text-align: left;
+            padding: 14px; border: 1px solid var(--border-color); text-align: left;
         }
         .rating-table th { background-color: var(--card-bg); font-weight: bold; }
-        .loading { font-style: italic; color: #888; margin: 15px; }
+        .loading { font-style: italic; color: #888; margin: 20px; }
     </style>
 </head>
 <body>
 
     <div id="login-screen" class="screen active">
         <h2>Tizimga kirish</h2>
-        <p>Imtihon tizimidan foydalanish uchun login kiriting (ismingiz yoki taxallusingiz):</p>
-        <input type="text" id="login-input" placeholder="Loginingizni yozing...">
+        <p>Imtihonga tayyorgarlik tizimiga xush kelibsiz. Davom etish uchun loginingizni kiriting:</p>
+        <input type="text" id="login-input" placeholder="Ismingiz...">
         <button onclick="handleLogin()">Kirish</button>
     </div>
 
     <div id="main-screen" class="screen">
-        <h3 id="welcome-user" style="color: #888; font-weight: normal;"></h3>
+        <h3 id="welcome-user" style="color: #777; font-weight: normal; margin-bottom: 30px;"></h3>
         <button onclick="showScreen('subjects-screen')">Start a quiz</button>
         <button onclick="loadRatings()">Rating</button>
         <button onclick="toggleNightMode()">Night switch</button>
@@ -82,25 +93,25 @@
         <button onclick="startQuiz('Pedagogika nazariyasi va tarixi')">Pedagogika nazariyasi va tarixi</button>
         <button onclick="startQuiz('Deviantologiya')">Deviantologiya</button>
         <button onclick="startQuiz('Psixologik maslahat va kouching')">Psixologik maslahat va kouching</button>
-        <button class="option-btn" style="text-align:center;" onclick="showScreen('main-screen')">Orqaga</button>
+        <button class="option-btn" style="text-align:center; margin-top:20px;" onclick="showScreen('main-screen')">Orqaga</button>
     </div>
 
     <div id="quiz-screen" class="screen">
         <h3 id="quiz-subject" style="color: var(--btn-color);"></h3>
         <p id="quiz-progress" style="font-weight: bold; text-align: right;"></p>
-        <p id="question-text" style="font-size: 18px; text-align: left; line-height: 1.5; margin-bottom: 25px;"></p>
+        <p id="question-text" style="font-size: 19px; text-align: left; line-height: 1.5; margin-bottom: 25px;"></p>
         <div id="options-container"></div>
     </div>
 
     <div id="rating-screen" class="screen">
-        <h2>Top 5 Reyting jadvallari</h2>
+        <h2>Top 5 Reyting</h2>
         <div id="rating-container"></div>
         <button class="option-btn" style="text-align:center; background-color: var(--btn-color); color: white;" onclick="showScreen('main-screen')">Asosiy Menuga Qaytish</button>
     </div>
 
     <script>
-        // 1-QADAMDA GOOGLE SHEETS'DAN OLINGAN URL MANZILNI SHU YERGA QO'YING:
-        const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbxIlFCO4xxjVJS-uOfyZPU09qWEMbCTUaN06uPiGNmM12d8K1wkND26pLdsAuYJ0q99Fw/exec";
+        // GOOGLE APPS SCRIPT YANGLI URL MANZILINI SHU YERGA KIRITING
+        const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbwLk47MlwD5KhhXF9RvqWSzh8SPAeY1L5veS-MJf-anVM9veqhd9y6j6YSLciZ5SJ194w/exec";
 
         const tg = window.Telegram.WebApp;
         tg.expand();
@@ -111,23 +122,23 @@
         let currentQIndex = 0;
         let score = 0;
 
-        // PDF-fayllardan olingan va tartiblangan testlar bazasi (Birinchi variant doim to'g'ri javob)
+        // Barcha testlar bazasi (1-variant har doim to'g'ri)
         const allQuizData = {
             "Pedagogika nazariyasi va tarixi": [
                 {q: "O'zbekiston Respublikasi Prezidentining \"Yangi O'zbekistonning taraqqiyot strategiyasi to'g'risida\"gi Farmoni qachon qabul qilindi?", o: ["2022-yil 28-yanvardagi 60-sonli PF", "2022-yil 17-maydagi 134-PF", "2023-yil 28-fevraldagi 60-sonli PF", "2017-yil 14-yanvar"]},
                 {q: "O'zbekiston Respublikasi Prezidentining \"Yangi O'zbekistonning taraqqiyot strategiyasi to'g'risida\"gi Farmoniga binoan nechta ustuvor yo'nalishi belgilandi?", o: ["7 ta ustuvor yo'nalish, 100 ta maqsad", "5 ta ustuvor yo'nalish, 80 ta maqsad", "3 ta, 80 ta maqsad", "6 ta, 100 ta maqsad"]},
-                {q: "\"Ta'lim to'g'risidagi qonun\"ning maqsadi qaysi javobda to'g'ri ko'rsatilgan?", o: ["Ta'lim sohasidagi munosabatlarni tartibga solishdan iborat", "tarbiya sohasidagi munosabatlarni tartibga solishdan iborat", "ta'lim tizimini takomillashtirish", "ta'lim tizimini yuqori bosqichga ko'tarish"]},
+                {q: "\"Ta'lim to'g'risidagi qonun\"ning maqsadi qaysi javobda to'g'ri ko'rsatilgan?", o: ["Ta'lim sohasidagi munosabatlarni tartibga solishdan iborat", "Tarbiya sohasidagi munosabatlarni tartibga solishdan iborat", "Ta'lim tizimini takomillashtirish", "Ta'lim tizimini yuqori bosqichga ko'tarish"]},
                 {q: "STEAM ta'limning maqsadi to'g'ri ko'rsatilgan qatorni belgilang.", o: ["STEAM fan boʻyicha emas, balki mavzular bo'yicha integratsiyalashgan o'qitish tizimidir", "STEAM ta'limning texnologiyasi oliy ta'lim uchun yangicha o'qitish metodikasidir", "An'anaviy metodikadan farq qilmaydigan tizimdir", "Faqat matematika fanini chuqurroq o'rgatish tizimidir"]}
             ],
             "Deviantologiya": [
-                {q: "Radikal moslashuv nima?", o: ["shaxsning mavjud ijtimoiy hayotda o'zgarishi orqali o'z-o'zini ro'yobga chiqarishi", "shaxsning o'z oliy yutuqlari vositasida ijtimoiy hayotga ta'siri orqali o'z-o'zini ro'yobga chiqarishi", "shaxsning jamiyatda ijtimoiy talablarga orientatsiyasi vositasida o'z-o'zini ro'yobga chiqarishi", "mavjud bo'lgan ijtimoiy talab (me'yor) lardan chiqish vositasida o'z-o'zini ro'yobga chiqarish"]},
-                {q: "Ijtimoiy-psixologik moslashmaganlik nima?", o: ["o'z-o'zini ro'yobga chiqarish va moslashish jarayonlarini blokirovkalash holati.", "shaxsning mavjud ijtimoiy hayotda o'zgarishi orqali o'z-o'zini ro'yobga chiqa olmaslik", "shaxsning jamiyatda ijtimoiy talablarga orientatsiyasi vositasida o'z-o'zini ro'yobga chiqa olmaslik", "me'yorlardan chiqish orqali rivojlanish holati"]},
+                {q: "Radikal moslashuv nima?", o: ["Shaxsning mavjud ijtimoiy hayotda o'zgarishi orqali o'z-o'zini ro'yobga chiqarishi", "Shaxsning o'z oliy yutuqlari vositasida ijtimoiy hayotga ta'siri orqali o'z-o'zini ro'yobga chiqarishi", "Shaxsning jamiyatda ijtimoiy talablarga orientatsiyasi vositasida o'z-o'zini ro'yobga chiqarishi", "Mavjud bo'lgan ijtimoiy talab (me'yor) lardan chiqish vositasida o'z-o'zini ro'yobga chiqarish"]},
+                {q: "Ijtimoiy-psixologik moslashmaganlik nima?", o: ["O'z-o'zini ro'yobga chiqarish va moslashish jarayonlarini blokirovkalash holati.", "Shaxsning mavjud ijtimoiy hayotda o'zgarishi orqali o'z-o'zini ro'yobga chiqa olmaslik", "Shaxsning jamiyatda ijtimoiy talablarga orientatsiyasi vositasida o'z-o'zini ro'yobga chiqa olmaslik", "Mavjud bo'lgan ijtimoiy talablardan chiqish orqali rivojlanish holati"]},
                 {q: "Dispozitsiyali kontseptsiyaning asoschisi kim?", o: ["V.A.Yadov", "U.S.Tomas", "M.G.Davletshin", "Petrovskiy"]},
-                {q: "Deviant xulq atvor nechta darajada o'rganiladi va uning nomlari qanday?", o: ["2 ta darajada: Individual va ommaviy", "2 ta darajada: Quyi va yuqori darajada", "3 ta darajada: Yosh darajasi, psixologik, fiziologik.", "4 ta darajada: Individual, guruhiy, jamoaviy, ommaviy"]}
+                {q: "Deviant xulq atvor nechta darajada o'rganiladi va uning nomlari qanday?", o: ["2 ta darajada: Individual va ommaviy", "2 ta darajada: Quyi va yuqori darajada", "3 ta darajada: Yosh darajasi, psixologik", "4 ta darajada: Individual, guruhiy, ommaviy"]}
             ],
             "Psixologik maslahat va kouching": [
                 {q: "Psixologik xizmat qayerda va nechanchi yili rivojlana boshlagan?", o: ["AQShda 1800 y.", "Fransiyada 1990 y.", "Rossiyada 1960 y.", "Estoniyada 1980 y."]},
-                {q: "Maktab psixologining burchlariga nima kiradi?", o: ["tadqiqot natijalarini sir saqlash", "eksperimental tadqiqotlar oʻtkazish", "o'qituvchilar bilan hamkorlikda ishlash", "ota-onalar iltimosi bilan maslahatlar berish"]},
+                {q: "Maktab psixologining burchlariga nima kiradi?", o: ["Tadqiqot natijalarini sir saqlash", "Eksperimental tadqiqotlar oʻtkazish", "O'qituvchilar bilan hamkorlikda ishlash", "Ota-onalar iltimosi bilan maslahatlar berish"]},
                 {q: "Maslahat jarayonida paydo bo'ladigan xatolarni nechta turga bo'lish mumkin?", o: ["3 ta turga", "2 ta turga", "1 ta turga", "4 ta turga"]},
                 {q: "Suhbat jarayonida kaftini ochib o'tirish nimani bildiradi?", o: ["Bu insonning samimiy, ishonuvchan halolligini bildiradi", "Bu insonning qiziquvchan, shoshqaloq ekanligini bildiradi", "Bu insonning hayolparast ekanligini bildiradi", "Bu insonning samimiy emasligini bildiradi"]}
             ]
@@ -145,7 +156,7 @@
                 document.getElementById('welcome-user').innerText = "Login: " + currentUser;
                 showScreen('main-screen');
             } else {
-                alert("Iltimos, tizimga kirish uchun login kiriting!");
+                alert("Iltimos, ismingizni kiriting!");
             }
         }
 
@@ -160,11 +171,11 @@
             document.getElementById('quiz-subject').innerText = subject;
             
             let rawQuestions = allQuizData[subject] || [];
-            // Random tarzda maksimal 25 ta testni saralab olish
+            // Random tarzda maksimal 25 ta savolni olish
             questions = [...rawQuestions].sort(() => 0.5 - Math.random()).slice(0, 25);
             
             if(questions.length === 0) {
-                alert("Ushbu fanga oid testlar hali yuklanmagan!");
+                alert("Ushbu fanda testlar mavjud emas!");
                 return;
             }
             showScreen('quiz-screen');
@@ -178,10 +189,10 @@
             }
             const qData = questions[currentQIndex];
             document.getElementById('question-text').innerText = qData.q;
-            document.getElementById('quiz-progress').innerText = `Savol: ${currentQIndex + 1}/${questions.length}`;
+            document.getElementById('quiz-progress').innerText = `${currentQIndex + 1}/${questions.length}`;
             
             const correctAnswer = qData.o[0];
-            // Variantlarni foydalanuvchiga aralashtirib ko'rsatish
+            // Variantlarni ekranda ko'rsatishdan oldin aralashtirish
             let shuffledOptions = [...qData.o].sort(() => 0.5 - Math.random());
             
             const container = document.getElementById('options-container');
@@ -197,43 +208,32 @@
         }
 
         function checkAnswer(selected, correct) {
-            if(selected === correct) {
-                score++;
-            }
+            if(selected === correct) score++;
             currentQIndex++;
             loadQuestion();
         }
 
-       function endQuiz() {
-            alert(`Quiz yakunlandi! Natijangiz: ${score}/${questions.length}`);
+        function endQuiz() {
+            alert(`Imtihon yakunlandi!\nSizning natijangiz: ${score}/${questions.length}`);
             
-            // Google Sheets'ga ma'lumotni yuborish (Xavfsiz va bloklanmaydigan formatda)
-            fetch(SCRIPT_URL, {
-                method: "POST",
-                headers: {
-                    // Kontent turini matn ko'rinishida yuboramiz, bu Google CORS blokini chetlab o'tadi
-                    "Content-Type": "text/plain;charset=utf-8" 
-                },
-                body: JSON.stringify({
-                    action: "submit_score",
-                    login: currentUser,
-                    subject: currentSubject,
-                    score: score
-                })
-            })
-            .then(res => console.log("Natija muvaffaqiyatli jo'natildi."))
-            .catch(err => console.error("Xatolik:", err));
+            // Xavfsiz GET so'rovi orqali ma'lumotni Google Sheets'ga yuborish (CORS error bermaydi)
+            const submitUrl = `${SCRIPT_URL}?action=submit_score&login=${encodeURIComponent(currentUser)}&subject=${encodeURIComponent(currentSubject)}&score=${score}`;
+            
+            fetch(submitUrl)
+                .then(res => res.json())
+                .then(data => console.log("Natija saqlandi:", data))
+                .catch(err => console.error("Saqlashda xatolik:", err));
 
             showScreen('main-screen');
         }
 
         function loadRatings() {
             const container = document.getElementById('rating-container');
-            container.innerHTML = '<div class="loading">Reyting jadvallari yuklanmoqda...</div>';
+            container.innerHTML = '<div class="loading">Reytinglar yuklanmoqda...</div>';
             showScreen('rating-screen');
 
-            // GET so'rovi orqali reytingni xavfsiz yuklash
-            fetch(SCRIPT_URL + "?action=get_ratings")
+            // Xavfsiz GET so'rovi orqali ma'lumotlarni tortish
+            fetch(`${SCRIPT_URL}?action=get_ratings`)
             .then(res => res.json())
             .then(data => {
                 container.innerHTML = "";
@@ -241,6 +241,7 @@
                 
                 subjects.forEach(sub => {
                     let subData = data.filter(r => r.subject === sub);
+                    // Ballar bo'yicha kamayish tartibida saralash va faqat top 5 ni olish
                     subData.sort((a, b) => b.score - a.score);
                     let top5 = subData.slice(0, 5);
                     
@@ -248,7 +249,7 @@
                     tableHtml += `<table class="rating-table"><thead><tr><th>№</th><th>Login</th><th>Ball</th></tr></thead><tbody>`;
                     
                     if(top5.length === 0) {
-                        tableHtml += `<tr><td colspan="3" style="text-align:center; color:#888;">Hozircha natijalar mavjud emas</td></tr>`;
+                        tableHtml += `<tr><td colspan="3" style="text-align:center; color:#888;">Natijalar mavjud emas</td></tr>`;
                     } else {
                         top5.forEach((r, idx) => {
                             tableHtml += `<tr><td>${idx + 1}</td><td>${r.login}</td><td>${r.score} ball</td></tr>`;
@@ -260,7 +261,7 @@
                 });
             })
             .catch(err => {
-                container.innerHTML = '<div class="loading" style="color:red;">Ma\'lumot yuklashda xatolik yuz berdi yoki reyting jadvali bo\'sh.</div>';
+                container.innerHTML = '<div class="loading" style="color:red;">Ma\'lumot yuklashda xatolik yuz berdi.</div>';
                 console.error(err);
             });
         }

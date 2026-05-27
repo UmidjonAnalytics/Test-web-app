@@ -1,0 +1,268 @@
+<!DOCTYPE html>
+<html lang="uz">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Imtihon Quiz WebApp</title>
+    <script src="https://telegram.org/js/telegram-web-app.js"></script>
+    <style>
+        :root {
+            --bg-color: #ffffff;
+            --text-color: #333333;
+            --btn-color: #0088cc;
+            --btn-text: #ffffff;
+            --card-bg: #f4f4f4;
+            --border-color: #dddddd;
+        }
+        .dark-mode {
+            --bg-color: #181818;
+            --text-color: #f5f5f5;
+            --btn-color: #248b1d;
+            --btn-text: #ffffff;
+            --card-bg: #262626;
+            --border-color: #404040;
+        }
+        body {
+            background-color: var(--bg-color);
+            color: var(--text-color);
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+            transition: background 0.3s, color 0.3s;
+            margin: 0; padding: 15px;
+            display: flex; flex-direction: column; align-items: center;
+        }
+        .screen { display: none; width: 100%; max-width: 450px; text-align: center; box-sizing: border-box; }
+        .active { display: block; }
+        h2, h3 { margin-bottom: 20px; }
+        button {
+            background-color: var(--btn-color);
+            color: var(--btn-text);
+            border: none; padding: 16px; margin: 10px 0;
+            width: 100%; font-size: 16px; border-radius: 12px;
+            cursor: pointer; font-weight: 600; transition: transform 0.1s;
+        }
+        button:active { transform: scale(0.98); }
+        input {
+            width: 100%; padding: 14px; margin: 15px 0;
+            border-radius: 10px; border: 1px solid var(--border-color);
+            font-size: 16px; box-sizing: border-box; background: var(--card-bg); color: var(--text-color);
+        }
+        .option-btn {
+            background-color: var(--card-bg); color: var(--text-color);
+            border: 1.5px solid var(--border-color); text-align: left; padding: 14px;
+        }
+        .option-btn:hover { border-color: var(--btn-color); }
+        .rating-table {
+            width: 100%; border-collapse: collapse; margin: 15px 0 25px 0; font-size: 15px;
+        }
+        .rating-table th, .rating-table td {
+            padding: 12px; border: 1px solid var(--border-color); text-align: left;
+        }
+        .rating-table th { background-color: var(--card-bg); font-weight: bold; }
+        .loading { font-style: italic; color: #888; margin: 15px; }
+    </style>
+</head>
+<body>
+
+    <div id="login-screen" class="screen active">
+        <h2>Tizimga kirish</h2>
+        <p>Imtihon tizimidan foydalanish uchun login kiriting (ismingiz yoki taxallusingiz):</p>
+        <input type="text" id="login-input" placeholder="Loginingizni yozing...">
+        <button onclick="handleLogin()">Kirish</button>
+    </div>
+
+    <div id="main-screen" class="screen">
+        <h3 id="welcome-user" style="color: #888; font-weight: normal;"></h3>
+        <button onclick="showScreen('subjects-screen')">Start a quiz</button>
+        <button onclick="loadRatings()">Rating</button>
+        <button onclick="toggleNightMode()">Night switch</button>
+    </div>
+
+    <div id="subjects-screen" class="screen">
+        <h2>Fanni tanlang</h2>
+        <button onclick="startQuiz('Pedagogika nazariyasi va tarixi')">Pedagogika nazariyasi va tarixi</button>
+        <button onclick="startQuiz('Deviantologiya')">Deviantologiya</button>
+        <button onclick="startQuiz('Psixologik maslahat va kouching')">Psixologik maslahat va kouching</button>
+        <button class="option-btn" style="text-align:center;" onclick="showScreen('main-screen')">Orqaga</button>
+    </div>
+
+    <div id="quiz-screen" class="screen">
+        <h3 id="quiz-subject" style="color: var(--btn-color);"></h3>
+        <p id="quiz-progress" style="font-weight: bold; text-align: right;"></p>
+        <p id="question-text" style="font-size: 18px; text-align: left; line-height: 1.5; margin-bottom: 25px;"></p>
+        <div id="options-container"></div>
+    </div>
+
+    <div id="rating-screen" class="screen">
+        <h2>Top 5 Reyting jadvallari</h2>
+        <div id="rating-container"></div>
+        <button class="option-btn" style="text-align:center; background-color: var(--btn-color); color: white;" onclick="showScreen('main-screen')">Asosiy Menuga Qaytish</button>
+    </div>
+
+    <script>
+        // 1-QADAMDA GOOGLE SHEETS'DAN OLINGAN URL MANZILNI SHU YERGA QO'YING:
+        const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbz...SIZNING_URL.../exec";
+
+        const tg = window.Telegram.WebApp;
+        tg.expand();
+
+        let currentUser = "";
+        let currentSubject = "";
+        let questions = [];
+        let currentQIndex = 0;
+        let score = 0;
+
+        // PDF-fayllardan olingan va tartiblangan testlar bazasi (Birinchi variant doim to'g'ri javob)
+        const allQuizData = {
+            "Pedagogika nazariyasi va tarixi": [
+                {q: "O'zbekiston Respublikasi Prezidentining \"Yangi O'zbekistonning taraqqiyot strategiyasi to'g'risida\"gi Farmoni qachon qabul qilindi?", o: ["2022-yil 28-yanvardagi 60-sonli PF", "2022-yil 17-maydagi 134-PF", "2023-yil 28-fevraldagi 60-sonli PF", "2017-yil 14-yanvar"]},
+                {q: "O'zbekiston Respublikasi Prezidentining \"Yangi O'zbekistonning taraqqiyot strategiyasi to'g'risida\"gi Farmoniga binoan nechta ustuvor yo'nalishi belgilandi?", o: ["7 ta ustuvor yo'nalish, 100 ta maqsad", "5 ta ustuvor yo'nalish, 80 ta maqsad", "3 ta, 80 ta maqsad", "6 ta, 100 ta maqsad"]},
+                {q: "\"Ta'lim to'g'risidagi qonun\"ning maqsadi qaysi javobda to'g'ri ko'rsatilgan?", o: ["Ta'lim sohasidagi munosabatlarni tartibga solishdan iborat", "tarbiya sohasidagi munosabatlarni tartibga solishdan iborat", "ta'lim tizimini takomillashtirish", "ta'lim tizimini yuqori bosqichga ko'tarish"]},
+                {q: "STEAM ta'limning maqsadi to'g'ri ko'rsatilgan qatorni belgilang.", o: ["STEAM fan boʻyicha emas, balki mavzular bo'yicha integratsiyalashgan o'qitish tizimidir", "STEAM ta'limning texnologiyasi oliy ta'lim uchun yangicha o'qitish metodikasidir", "An'anaviy metodikadan farq qilmaydigan tizimdir", "Faqat matematika fanini chuqurroq o'rgatish tizimidir"]}
+            ],
+            "Deviantologiya": [
+                {q: "Radikal moslashuv nima?", o: ["shaxsning mavjud ijtimoiy hayotda o'zgarishi orqali o'z-o'zini ro'yobga chiqarishi", "shaxsning o'z oliy yutuqlari vositasida ijtimoiy hayotga ta'siri orqali o'z-o'zini ro'yobga chiqarishi", "shaxsning jamiyatda ijtimoiy talablarga orientatsiyasi vositasida o'z-o'zini ro'yobga chiqarishi", "mavjud bo'lgan ijtimoiy talab (me'yor) lardan chiqish vositasida o'z-o'zini ro'yobga chiqarish"]},
+                {q: "Ijtimoiy-psixologik moslashmaganlik nima?", o: ["o'z-o'zini ro'yobga chiqarish va moslashish jarayonlarini blokirovkalash holati.", "shaxsning mavjud ijtimoiy hayotda o'zgarishi orqali o'z-o'zini ro'yobga chiqa olmaslik", "shaxsning jamiyatda ijtimoiy talablarga orientatsiyasi vositasida o'z-o'zini ro'yobga chiqa olmaslik", "me'yorlardan chiqish orqali rivojlanish holati"]},
+                {q: "Dispozitsiyali kontseptsiyaning asoschisi kim?", o: ["V.A.Yadov", "U.S.Tomas", "M.G.Davletshin", "Petrovskiy"]},
+                {q: "Deviant xulq atvor nechta darajada o'rganiladi va uning nomlari qanday?", o: ["2 ta darajada: Individual va ommaviy", "2 ta darajada: Quyi va yuqori darajada", "3 ta darajada: Yosh darajasi, psixologik, fiziologik.", "4 ta darajada: Individual, guruhiy, jamoaviy, ommaviy"]}
+            ],
+            "Psixologik maslahat va kouching": [
+                {q: "Psixologik xizmat qayerda va nechanchi yili rivojlana boshlagan?", o: ["AQShda 1800 y.", "Fransiyada 1990 y.", "Rossiyada 1960 y.", "Estoniyada 1980 y."]},
+                {q: "Maktab psixologining burchlariga nima kiradi?", o: ["tadqiqot natijalarini sir saqlash", "eksperimental tadqiqotlar oʻtkazish", "o'qituvchilar bilan hamkorlikda ishlash", "ota-onalar iltimosi bilan maslahatlar berish"]},
+                {q: "Maslahat jarayonida paydo bo'ladigan xatolarni nechta turga bo'lish mumkin?", o: ["3 ta turga", "2 ta turga", "1 ta turga", "4 ta turga"]},
+                {q: "Suhbat jarayonida kaftini ochib o'tirish nimani bildiradi?", o: ["Bu insonning samimiy, ishonuvchan halolligini bildiradi", "Bu insonning qiziquvchan, shoshqaloq ekanligini bildiradi", "Bu insonning hayolparast ekanligini bildiradi", "Bu insonning samimiy emasligini bildiradi"]}
+            ]
+        };
+
+        function showScreen(screenId) {
+            document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+            document.getElementById(screenId).classList.add('active');
+        }
+
+        function handleLogin() {
+            const loginInput = document.getElementById('login-input').value.trim();
+            if(loginInput) {
+                currentUser = loginInput;
+                document.getElementById('welcome-user').innerText = "Login: " + currentUser;
+                showScreen('main-screen');
+            } else {
+                alert("Iltimos, tizimga kirish uchun login kiriting!");
+            }
+        }
+
+        function toggleNightMode() {
+            document.body.classList.toggle('dark-mode');
+        }
+
+        function startQuiz(subject) {
+            currentSubject = subject;
+            currentQIndex = 0;
+            score = 0;
+            document.getElementById('quiz-subject').innerText = subject;
+            
+            let rawQuestions = allQuizData[subject] || [];
+            // Random tarzda maksimal 25 ta testni saralab olish
+            questions = [...rawQuestions].sort(() => 0.5 - Math.random()).slice(0, 25);
+            
+            if(questions.length === 0) {
+                alert("Ushbu fanga oid testlar hali yuklanmagan!");
+                return;
+            }
+            showScreen('quiz-screen');
+            loadQuestion();
+        }
+
+        function loadQuestion() {
+            if(currentQIndex >= questions.length) {
+                endQuiz();
+                return;
+            }
+            const qData = questions[currentQIndex];
+            document.getElementById('question-text').innerText = qData.q;
+            document.getElementById('quiz-progress').innerText = `Savol: ${currentQIndex + 1}/${questions.length}`;
+            
+            const correctAnswer = qData.o[0];
+            // Variantlarni foydalanuvchiga aralashtirib ko'rsatish
+            let shuffledOptions = [...qData.o].sort(() => 0.5 - Math.random());
+            
+            const container = document.getElementById('options-container');
+            container.innerHTML = "";
+            
+            shuffledOptions.forEach(opt => {
+                const btn = document.createElement('button');
+                btn.className = "option-btn";
+                btn.innerText = opt;
+                btn.onclick = () => checkAnswer(opt, correctAnswer);
+                container.appendChild(btn);
+            });
+        }
+
+        function checkAnswer(selected, correct) {
+            if(selected === correct) {
+                score++;
+            }
+            currentQIndex++;
+            loadQuestion();
+        }
+
+        function endQuiz() {
+            alert(`Siz testni yakunladingiz!\nNatijangiz: ${score}/${questions.length}`);
+            
+            // Natijani Google Sheets'ga yuborish
+            fetch(SCRIPT_URL, {
+                method: "POST",
+                mode: "no-cors",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({
+                    action: "submit_score",
+                    login: currentUser,
+                    subject: currentSubject,
+                    score: score
+                })
+            }).then(() => {
+                console.log("Natija saqlandi.");
+            }).catch(err => console.error("Xatolik:", err));
+
+            showScreen('main-screen');
+        }
+
+        function loadRatings() {
+            const container = document.getElementById('rating-container');
+            container.innerHTML = '<div class="loading">Reyting ma\'lumotlari yuklanmoqda...</div>';
+            showScreen('rating-screen');
+
+            fetch(SCRIPT_URL + "?action=get_ratings")
+            .then(res => res.json())
+            .then(data => {
+                container.innerHTML = "";
+                const subjects = ["Pedagogika nazariyasi va tarixi", "Deviantologiya", "Psixologik maslahat va kouching"];
+                
+                subjects.forEach(sub => {
+                    // Har bir fanga tegishli natijalarni ajratish
+                    let subData = data.filter(r => r.subject === sub);
+                    // Ballar bo'yicha kamayish tartibida saralash va faqat eng yaxshi 5 tani (Top 5) olish
+                    subData.sort((a, b) => b.score - a.score);
+                    let top5 = subData.slice(0, 5);
+                    
+                    let tableHtml = `<h3 style="margin-top:20px; border-bottom: 2px solid var(--btn-color); padding-bottom:5px;">${sub}</h3>`;
+                    tableHtml += `<table class="rating-table"><thead><tr><th>№</th><th>Login</th><th>Maksimal Ball</th></tr></thead><tbody>`;
+                    
+                    if(top5.length === 0) {
+                        tableHtml += `<tr><td colspan="3" style="text-align:center; color:#888;">Hozircha natijalar yo'q</td></tr>`;
+                    } else {
+                        top5.forEach((r, idx) => {
+                            tableHtml += `<tr><td>${idx + 1}</td><td>${r.login}</td><td>${r.score} tadan to'g'ri</td></tr>`;
+                        });
+                    }
+                    
+                    tableHtml += `</tbody></table>`;
+                    container.innerHTML += tableHtml;
+                });
+            })
+            .catch(err => {
+                container.innerHTML = '<div class="loading" style="color:red;">Ma\'lumotlarni yuklashda xatolik yuz berdi.</div>';
+                console.error(err);
+            });
+        }
+    </script>
+</body>
+</html>

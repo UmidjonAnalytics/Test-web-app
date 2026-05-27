@@ -31,7 +31,8 @@
             display: flex; flex-direction: column; align-items: center;
             overflow-x: hidden;
         }
-        /* Vertikal o'tish animatsiyasi */
+        
+        /* Vertikal siljish (moving vertically) animatsiyasi */
         .screen { 
             display: none; width: 100%; max-width: 450px; text-align: center; box-sizing: border-box; 
         }
@@ -110,7 +111,7 @@
     </div>
 
     <script>
-        // GOOGLE APPS SCRIPT YANGLI URL MANZILINI SHU YERGA KIRITING
+        // SIZNING SHAXSIY API MANZILINGIZ:
         const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbwLk47MlwD5KhhXF9RvqWSzh8SPAeY1L5veS-MJf-anVM9veqhd9y6j6YSLciZ5SJ194w/exec";
 
         const tg = window.Telegram.WebApp;
@@ -122,7 +123,6 @@
         let currentQIndex = 0;
         let score = 0;
 
-        // Barcha testlar bazasi (1-variant har doim to'g'ri)
         const allQuizData = {
             "Pedagogika nazariyasi va tarixi": [
                 {q: "O'zbekiston Respublikasi Prezidentining \"Yangi O'zbekistonning taraqqiyot strategiyasi to'g'risida\"gi Farmoni qachon qabul qilindi?", o: ["2022-yil 28-yanvardagi 60-sonli PF", "2022-yil 17-maydagi 134-PF", "2023-yil 28-fevraldagi 60-sonli PF", "2017-yil 14-yanvar"]},
@@ -171,7 +171,6 @@
             document.getElementById('quiz-subject').innerText = subject;
             
             let rawQuestions = allQuizData[subject] || [];
-            // Random tarzda maksimal 25 ta savolni olish
             questions = [...rawQuestions].sort(() => 0.5 - Math.random()).slice(0, 25);
             
             if(questions.length === 0) {
@@ -192,7 +191,6 @@
             document.getElementById('quiz-progress').innerText = `${currentQIndex + 1}/${questions.length}`;
             
             const correctAnswer = qData.o[0];
-            // Variantlarni ekranda ko'rsatishdan oldin aralashtirish
             let shuffledOptions = [...qData.o].sort(() => 0.5 - Math.random());
             
             const container = document.getElementById('options-container');
@@ -216,13 +214,12 @@
         function endQuiz() {
             alert(`Imtihon yakunlandi!\nSizning natijangiz: ${score}/${questions.length}`);
             
-            // Xavfsiz GET so'rovi orqali ma'lumotni Google Sheets'ga yuborish (CORS error bermaydi)
             const submitUrl = `${SCRIPT_URL}?action=submit_score&login=${encodeURIComponent(currentUser)}&subject=${encodeURIComponent(currentSubject)}&score=${score}`;
             
             fetch(submitUrl)
-                .then(res => res.json())
-                .then(data => console.log("Natija saqlandi:", data))
-                .catch(err => console.error("Saqlashda xatolik:", err));
+                .then(res => res.text())
+                .then(data => console.log("Saqlandi"))
+                .catch(err => console.error("Saqlashda xatolik yuz berdi:", err));
 
             showScreen('main-screen');
         }
@@ -232,7 +229,6 @@
             container.innerHTML = '<div class="loading">Reytinglar yuklanmoqda...</div>';
             showScreen('rating-screen');
 
-            // Xavfsiz GET so'rovi orqali ma'lumotlarni tortish
             fetch(`${SCRIPT_URL}?action=get_ratings`)
             .then(res => res.json())
             .then(data => {
@@ -241,7 +237,6 @@
                 
                 subjects.forEach(sub => {
                     let subData = data.filter(r => r.subject === sub);
-                    // Ballar bo'yicha kamayish tartibida saralash va faqat top 5 ni olish
                     subData.sort((a, b) => b.score - a.score);
                     let top5 = subData.slice(0, 5);
                     

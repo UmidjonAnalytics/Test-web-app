@@ -100,7 +100,7 @@
 
     <script>
         // 1-QADAMDA GOOGLE SHEETS'DAN OLINGAN URL MANZILNI SHU YERGA QO'YING:
-        const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbz...SIZNING_URL.../exec";
+        const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbxIlFCO4xxjVJS-uOfyZPU09qWEMbCTUaN06uPiGNmM12d8K1wkND26pLdsAuYJ0q99Fw/exec";
 
         const tg = window.Telegram.WebApp;
         tg.expand();
@@ -204,32 +204,35 @@
             loadQuestion();
         }
 
-        function endQuiz() {
-            alert(`Siz testni yakunladingiz!\nNatijangiz: ${score}/${questions.length}`);
+       function endQuiz() {
+            alert(`Quiz yakunlandi! Natijangiz: ${score}/${questions.length}`);
             
-            // Natijani Google Sheets'ga yuborish
+            // Google Sheets'ga ma'lumotni yuborish (Xavfsiz va bloklanmaydigan formatda)
             fetch(SCRIPT_URL, {
                 method: "POST",
-                mode: "no-cors",
-                headers: { "Content-Type": "application/json" },
+                headers: {
+                    // Kontent turini matn ko'rinishida yuboramiz, bu Google CORS blokini chetlab o'tadi
+                    "Content-Type": "text/plain;charset=utf-8" 
+                },
                 body: JSON.stringify({
                     action: "submit_score",
                     login: currentUser,
                     subject: currentSubject,
                     score: score
                 })
-            }).then(() => {
-                console.log("Natija saqlandi.");
-            }).catch(err => console.error("Xatolik:", err));
+            })
+            .then(res => console.log("Natija muvaffaqiyatli jo'natildi."))
+            .catch(err => console.error("Xatolik:", err));
 
             showScreen('main-screen');
         }
 
         function loadRatings() {
             const container = document.getElementById('rating-container');
-            container.innerHTML = '<div class="loading">Reyting ma\'lumotlari yuklanmoqda...</div>';
+            container.innerHTML = '<div class="loading">Reyting jadvallari yuklanmoqda...</div>';
             showScreen('rating-screen');
 
+            // GET so'rovi orqali reytingni xavfsiz yuklash
             fetch(SCRIPT_URL + "?action=get_ratings")
             .then(res => res.json())
             .then(data => {
@@ -237,20 +240,18 @@
                 const subjects = ["Pedagogika nazariyasi va tarixi", "Deviantologiya", "Psixologik maslahat va kouching"];
                 
                 subjects.forEach(sub => {
-                    // Har bir fanga tegishli natijalarni ajratish
                     let subData = data.filter(r => r.subject === sub);
-                    // Ballar bo'yicha kamayish tartibida saralash va faqat eng yaxshi 5 tani (Top 5) olish
                     subData.sort((a, b) => b.score - a.score);
                     let top5 = subData.slice(0, 5);
                     
-                    let tableHtml = `<h3 style="margin-top:20px; border-bottom: 2px solid var(--btn-color); padding-bottom:5px;">${sub}</h3>`;
-                    tableHtml += `<table class="rating-table"><thead><tr><th>№</th><th>Login</th><th>Maksimal Ball</th></tr></thead><tbody>`;
+                    let tableHtml = `<h3 style="margin-top:25px; border-bottom: 2px solid var(--btn-color); text-align:left; padding-bottom:5px;">${sub}</h3>`;
+                    tableHtml += `<table class="rating-table"><thead><tr><th>№</th><th>Login</th><th>Ball</th></tr></thead><tbody>`;
                     
                     if(top5.length === 0) {
-                        tableHtml += `<tr><td colspan="3" style="text-align:center; color:#888;">Hozircha natijalar yo'q</td></tr>`;
+                        tableHtml += `<tr><td colspan="3" style="text-align:center; color:#888;">Hozircha natijalar mavjud emas</td></tr>`;
                     } else {
                         top5.forEach((r, idx) => {
-                            tableHtml += `<tr><td>${idx + 1}</td><td>${r.login}</td><td>${r.score} tadan to'g'ri</td></tr>`;
+                            tableHtml += `<tr><td>${idx + 1}</td><td>${r.login}</td><td>${r.score} ball</td></tr>`;
                         });
                     }
                     
@@ -259,7 +260,7 @@
                 });
             })
             .catch(err => {
-                container.innerHTML = '<div class="loading" style="color:red;">Ma\'lumotlarni yuklashda xatolik yuz berdi.</div>';
+                container.innerHTML = '<div class="loading" style="color:red;">Ma\'lumot yuklashda xatolik yuz berdi yoki reyting jadvali bo\'sh.</div>';
                 console.error(err);
             });
         }

@@ -33,18 +33,18 @@
     }
     .active { transform: translateY(0); }
     .hidden-down { transform: translateY(100%); }
-    .hidden-up { transform: translateY(-100%); }
-
+    
     h1, h2, h3 { text-align: center; }
     p { font-size: 18px; text-align: center; font-weight: bold; }
 
     button {
       background: var(--btn-bg); color: var(--btn-text);
-      border: none; padding: 15px; margin: 10px; width: 90%; max-width: 400px;
-      border-radius: 8px; font-size: 18px; cursor: pointer;
-      transition: opacity 0.2s;
+      border: none; padding: 15px; margin: 10px; width: 100%; max-width: 400px;
+      border-radius: 8px; font-size: 16px; cursor: pointer;
+      transition: opacity 0.2s, background 0.3s;
     }
     button:active { opacity: 0.7; }
+    button:disabled { cursor: not-allowed; opacity: 0.9; }
     
     .back-btn { background: #cc0000; margin-top: auto; }
     .option-btn { background: #e0e0e0; color: #333; text-align: left; }
@@ -56,6 +56,21 @@
     th, td { border: 1px solid var(--text-color); padding: 8px; text-align: center; }
     
     .loader { margin-top: 50px; font-weight: bold; font-size: 20px; }
+
+    /* Summary Card Styles */
+    .summary-card {
+      border: 1px solid #ccc;
+      border-radius: 8px;
+      margin-bottom: 15px;
+      padding: 15px;
+      width: 100%;
+      max-width: 400px;
+      box-sizing: border-box;
+      background: rgba(0,0,0,0.05);
+    }
+    body.dark-mode .summary-card { background: rgba(255,255,255,0.05); border-color: #555; }
+    .summary-card p { font-size: 15px; text-align: left; font-weight: normal; margin: 5px 0;}
+    .summary-card .q-text { font-weight: bold; margin-bottom: 10px; }
   </style>
 </head>
 <body class="light-mode">
@@ -81,11 +96,20 @@
   <div id="quiz-screen" class="screen hidden-down">
     <h2 id="subject-title"></h2>
     <h3 id="question-counter"></h3>
-    <div id="quiz-content" style="width: 100%;">
+    <div id="quiz-content" style="width: 100%; display: flex; flex-direction: column; align-items: center;">
       <p id="question-text">Testlar yuklanmoqda...</p>
       <div id="options-container"></div>
+      <button id="next-btn" style="display: none; background: #4CAF50;" onclick="nextQuestion()">Keyingi savol ➡</button>
     </div>
     <button class="back-btn" onclick="showScreen('main-screen')">Tugatish</button>
+  </div>
+
+  <!-- XULOSA (SUMMARY) EKRANI -->
+  <div id="summary-screen" class="screen hidden-down">
+    <h2>Natijalar xulosasi</h2>
+    <h3 id="final-score-text"></h3>
+    <div id="summary-container" style="width: 100%; display: flex; flex-direction: column; align-items: center; padding-bottom: 20px;"></div>
+    <button class="back-btn" onclick="showScreen('main-screen')">Asosiy menyuga qaytish</button>
   </div>
 
   <!-- REYTING EKRANI -->
@@ -103,10 +127,10 @@
     const tg = window.Telegram.WebApp;
     tg.expand();
 
-    // Telegramdan foydalanuvchi ma'lumotlarini olish (Test uchun default ma'lumot)
     const user = tg.initDataUnsafe?.user || { id: Math.floor(Math.random()*10000), first_name: "Test Foydalanuvchi" };
 
     let currentQuestions = [];
+    let userAnswers = []; // To track answers for the summary
     let currentQIndex = 0;
     let score = 0;
     let currentSubject = "";
@@ -128,11 +152,14 @@
       currentSubject = subjectName;
       score = 0;
       currentQIndex = 0;
+      userAnswers = [];
       
       document.getElementById('subject-title').innerText = subjectName;
       document.getElementById('question-counter').innerText = "";
       document.getElementById('question-text').innerText = "Testlar yuklanmoqda. Iltimos kuting...";
       document.getElementById('options-container').innerHTML = "";
+      document.getElementById('next-btn').style.display = "none";
+      
       showScreen('quiz-screen');
       
       try {
@@ -149,7 +176,6 @@
           return;
         }
         
-        // Tasodifiy 25 ta savolni ajratib olish (yoki undan kam bo'lsa borini olish)
         currentQuestions = allQuestions.sort(() => 0.5 - Math.random()).slice(0, 25);
         loadQuestion();
       } catch (e) {
@@ -158,19 +184,14 @@
     }
 
     function loadQuestion() {
-      if (currentQIndex >= currentQuestions.length) {
-        finishQuiz();
-        return;
-      }
+      document.getElementById('next-btn').style.display = 'none'; // Hide next button initially
       
       const q = currentQuestions[currentQIndex];
       document.getElementById('question-counter').innerText = `${currentQIndex + 1} / ${currentQuestions.length}`;
       document.getElementById('question-text').innerText = q.question;
       
-      // To'g'ri javob har doim 0-indeksda bo'ladi (Backend'dan shunday kelyapti)
       const correctAnswer = q.options[0]; 
       
-      // Bo'sh bo'lmagan variantlarni olib, aralashtiramiz
       let validOptions = q.options.filter(opt => opt && opt.toString().trim() !== "");
       let shuffledOptions = validOptions.sort(() => 0.5 - Math.random());
       
@@ -181,32 +202,86 @@
         const btn = document.createElement('button');
         btn.className = 'option-btn';
         btn.innerText = opt;
-        btn.onclick = () => checkAnswer(opt, correctAnswer);
+        btn.onclick = (e) => checkAnswer(opt, correctAnswer, e.target);
         container.appendChild(btn);
       });
     }
 
-    function checkAnswer(selected, correct) {
-      if (selected === correct) score++;
+    function checkAnswer(selected, correct, btnElement) {
+      // Disable all buttons to prevent multiple clicks
+      const allBtns = document.querySelectorAll('.option-btn');
+      allBtns.forEach(b => {
+        b.disabled = true;
+        // Highlight the correct answer in green regardless of user choice
+        if (b.innerText === correct) {
+          b.style.background = '#4CAF50';
+          b.style.color = '#fff';
+        }
+      });
+
+      // Track logic and highlight red if wrong
+      if (selected === correct) {
+        score++;
+      } else {
+        btnElement.style.background = '#F44336';
+        btnElement.style.color = '#fff';
+      }
+
+      // Save for summary
+      userAnswers.push({
+        question: currentQuestions[currentQIndex].question,
+        selected: selected,
+        correct: correct
+      });
+
+      // Show the 'Next Question' button
+      document.getElementById('next-btn').style.display = 'block';
+    }
+
+    function nextQuestion() {
       currentQIndex++;
-      loadQuestion();
+      if (currentQIndex >= currentQuestions.length) {
+        finishQuiz();
+      } else {
+        loadQuestion();
+      }
     }
 
     function finishQuiz() {
-      const total = currentQuestions.length;
-      tg.showAlert(`Test yakunlandi!\nSizning natijangiz: ${score} / ${total}`);
-      showScreen('main-screen');
-      
-      // Natijani yuborish
+      // 1. Submit rating (Fixed CORS issue by using plain text)
       fetch(SCRIPT_URL, {
         method: 'POST',
+        headers: {
+          'Content-Type': 'text/plain;charset=utf-8',
+        },
         body: JSON.stringify({
           userId: user.id,
           userName: user.first_name,
           subject: currentSubject,
           score: score
         })
+      }).catch(e => console.log("Reytingni saqlashda xatolik:", e));
+
+      // 2. Generate Summary HTML
+      document.getElementById('final-score-text').innerText = `Sizning natijangiz: ${score} / ${currentQuestions.length}`;
+      let summaryHTML = "";
+      
+      userAnswers.forEach((ans, index) => {
+        let isCorrect = ans.selected === ans.correct;
+        let color = isCorrect ? '#4CAF50' : '#F44336';
+        
+        summaryHTML += `
+        <div class="summary-card">
+            <p class="q-text">${index + 1}. ${ans.question}</p>
+            <p style="color: ${color};"><b>Sizning javob:</b> ${ans.selected}</p>
+            ${!isCorrect ? `<p style="color: #4CAF50;"><b>To'g'ri javob:</b> ${ans.correct}</p>` : ''}
+        </div>`;
       });
+
+      document.getElementById('summary-container').innerHTML = summaryHTML;
+      
+      // 3. Show Summary Screen
+      showScreen('summary-screen');
     }
 
     async function loadRating() {
@@ -214,7 +289,9 @@
       document.getElementById('rating-tables').innerHTML = "<div class='loader'>Yuklanmoqda...</div>";
       
       try {
-        const response = await fetch(SCRIPT_URL + "?action=getRating");
+        // Added a timestamp to prevent browser caching from hiding new scores
+        const cacheBuster = new Date().getTime();
+        const response = await fetch(SCRIPT_URL + "?action=getRating&t=" + cacheBuster);
         const data = await response.json();
         
         let html = "";
